@@ -1,0 +1,16 @@
+{
+  "name": "billing-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Unified build and runtime scripts for Billing frontend/backend.",
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "release:bundle": "npm run build && node scripts/create-release-bundle.js",
+    "start": "npm --prefix backend run start:backend",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

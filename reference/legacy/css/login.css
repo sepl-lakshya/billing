@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Livvic&display=swap');
+body
+{
+	box-sizing: border-box;
+	font-family: 'Livvic', sans-serif;
+	padding: 0;
+	margin: 0;
+}
+.am-login-div
+{
+	background-image: radial-gradient(circle,  #103147, #0a0a2a);
+	height: 100vh;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	align-content: center;
+	justify-content: center;
+}
+.am-login-box
+{
+	width: 25%;
+	min-width: 280px;
+	padding: 10px;
+	background: rgba(0, 0, 0, 0.5);
+	border-radius: 20px;
+}
+.am-login-box form
+{
+	padding: 10px;
+	margin-bottom: 20px;
+}
+.am-login-box form h2
+{
+	color: #fff;
+	font-size: 2em;
+	font-weight: bold;
+	display: block;
+	text-align: center;
+	background: #CFE7fA;
+	background: linear-gradient(to right, #CFE7fA 20%, #6393C1 80%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.am-login-box form label
+{
+	display: inline-block;
+	color: #9a9a9c;
+	font-size: 1.2em;
+}
+.am-login-box span
+{
+	display: block;
+	text-align: right;
+}
+.am-login-box span a
+{
+	text-align: right;
+	text-decoration: none;
+	color: orange;
+	font-weight: bold;
+}
+.am-login-box span a:hover
+{
+	text-decoration: underline;
+}
+.am-login-box form input[type="text"],
+.am-login-box form input[type="Password"]
+{
+	box-sizing: border-box;
+	height: 40px;
+	width: 100%;
+	font-size: 1em;
+	color: #0e72e3;
+	padding-left: 10px;
+	margin-bottom: 15px;
+	border-radius: 5px;
+	border:none;
+}
+.am-login-box form input[type="Submit"]
+{
+	margin-top: 20px;
+	margin-bottom: 20px;
+	height: 40px;
+	width: 100%;
+	font-weight: bold;
+	font-size: 1.1em;
+	border-radius: 5px;
+	border:none;
+	color: #0c0c38;
+	background: linear-gradient(to right top, #ffc700, #ffbc00, #ffb100, #ffa600, #ff9b00);
+}
+.am-login-box button
+{
+	display: block;
+	margin:auto;
+	padding: 10px;
+	font-weight: bold;
+	background: rgba(0, 0, 0, 0);
+	font-size: 1em;
+	border:none;
+	border-bottom: 1px solid #9a9a9c;
+}
+.am-login-box button a
+{
+	color: #9a9a9c;
+	text-decoration: none;
+}
+
+
+.login-box-logo-wrapper
+{
+  text-align: center;
+}
+
+.azure-login-btn
+{
+	display: block;
+	text-align: center;
+	margin-top: 10px;
+	background: #FFB000;
+	padding: 10px !important;
+	border: 1px solid white;
+	font-weight: bold;
+	font-size: 1.2em;
+	border-radius: 10px;
+	text-decoration: none;
+
+}
+
+
+.login-error-msg
+{
+    color:white;
+    text-align:center;
+}
+
+.login-error-msg a
+{
+    color:lightblue;
+}
+
+.login-error-msg a i 
+{
+    margin-left:5px;
+}
+
+.login-error-msg a:hover
+{
+    color:white;
+}

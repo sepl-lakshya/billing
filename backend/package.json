@@ -1,0 +1,37 @@
+{
+  "name": "billing-backend",
+  "version": "1.0.0",
+  "description": "Modern Node/TypeScript backend for the Billing application (converted from PHP).",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node scripts/runBackendWithDb.js dev",
+    "dev:backend": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node scripts/runBackendWithDb.js start",
+    "start:backend": "node dist/index.js",
+    "db:check": "node scripts/runBackendWithDb.js check",
+    "db:setup": "node scripts/setupDb.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "csv-parse": "^7.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^3.2.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^20.14.9",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.3"
+  }
+}

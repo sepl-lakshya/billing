@@ -1,0 +1,44 @@
+# Dependencies / build output
+node_modules/
+dist/
+build/
+.next/
+release/
+
+# Env files — commit the templates (.env.demo / .env.production / .env.example),
+# ignore real & per-VM secret files.
+.env
+backend/.env
+frontend/.env
+.env.local
+backend/.env.local
+frontend/.env.local
+backend/.env.*.local
+frontend/.env.*.local
+
+# Per-VM deployment target marker (demo | production)
+deploy/.target
+
+# Large media / reference recordings (too big for git; keep locally only)
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+
+# Uploads (runtime)
+backend/uploads/
+
+# Logs
+*.log
+error_log
+logs/
+
+# Stale build artifacts (source of truth is the .ts)
+next-env.d.ts
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# OS / editor
+.DS_Store
+Thumbs.db
