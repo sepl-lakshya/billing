@@ -34,7 +34,7 @@ function lastDayOfMonth(year: number, month: number): string {
  */
 async function computeMonthlyDiff(projectId: number, preview: any) {
   const existing = await query(
-    `SELECT pi.id, pi.resource_id, pi.model, pi.unit_price,
+    `SELECT pi.id, pi.resource_id, pi.model, pi.unit_price, pi.header_id,
             (SELECT name FROM product WHERE id = pi.product) AS product_name,
             (SELECT name FROM project_header WHERE id = pi.header_id) AS header_name,
             (SELECT name FROM purchase_header WHERE id = pi.purchase_header_id) AS purchase_header_name
@@ -74,6 +74,8 @@ async function computeMonthlyDiff(projectId: number, preview: any) {
         matched.add(k);
         it.changeType = 'continuing';
         it.existingItemId = ex.id;
+        it.existingHeaderId = ex.header_id;
+        it.existingHeaderName = ex.header_name;
         it.prevUnitPrice = Number(ex.unit_price ?? 0);
         it.prevCost = lastCost.has(Number(ex.id)) ? lastCost.get(Number(ex.id)) : null;
         continuingCount++;
@@ -128,6 +130,11 @@ router.get(
       [projectId]
     );
     const distributors = await query('SELECT id, name FROM distributor WHERE is_active = 1 ORDER BY name');
+    const headers = await query('SELECT id, name FROM project_header WHERE project_id = ? AND is_deleted = 0 ORDER BY id', [projectId]);
+    const purchaseHeaders = await query(
+      'SELECT id, name FROM purchase_header WHERE (project_id = ? OR project_id = 0) AND is_active = 1 ORDER BY name',
+      [projectId]
+    );
     const discountRow = await queryOne('SELECT COUNT(*) AS c FROM project_discount WHERE project_id = ?', [projectId]);
     const hasDiscount = Number(discountRow?.c ?? 0) > 0;
 
@@ -152,6 +159,8 @@ router.get(
       billCount,
       distributor: Number(project.distributor ?? 0),
       distributors,
+      headers,
+      purchaseHeaders,
       hasDiscount,
       lastBill: lastBill ? { month: Number(lastBill.month), year: Number(lastBill.year) } : null,
       suggestedMonth: sMonth,
@@ -333,32 +342,46 @@ router.post(
         return id;
       };
 
+      // Resolve a sales header for a group LAZILY: only look it up / create it
+      // when a NEW item actually needs one, so re-imports never spawn empty
+      // duplicate headers. In a "manual header" import each group carries the id
+      // of an existing project_header (g.headerId) to place products into.
       for (const g of groups) {
         const headerName = toStr(g.header) || 'Cloud Services';
+        const explicitHeaderId = toNum(g.headerId, 0);
+        const groupPurchaseHeaderId = toNum(g.purchaseHeaderId, 0);
         const includedItems = (g.items || []).filter((it: any) => it.include !== false);
         if (includedItems.length === 0) continue;
 
-        // Sales-side project_header (reuse by name) — one "bar" per resource.
-        let [phRows]: any = await conn.query(
-          'SELECT id FROM project_header WHERE project_id = ? AND name = ? AND is_deleted = 0 LIMIT 1',
-          [projectId, headerName]
-        );
-        let headerId: number;
-        if (phRows.length) headerId = phRows[0].id;
-        else {
-          const hash = await generateUniqueHash(['project_header', 'project_item'], 32);
-          const [hr]: any = await conn.query(
-            'INSERT INTO project_header (hash, project_id, name, quantity, amount, is_deleted) VALUES (?,?,?,0,0,0)',
-            [hash, projectId, headerName]
+        let resolvedHeaderId: number | null = explicitHeaderId > 0 ? explicitHeaderId : null;
+        const resolveHeaderId = async (): Promise<number> => {
+          if (resolvedHeaderId) return resolvedHeaderId;
+          const [phRows]: any = await conn.query(
+            'SELECT id FROM project_header WHERE project_id = ? AND name = ? AND is_deleted = 0 LIMIT 1',
+            [projectId, headerName]
           );
-          headerId = hr.insertId;
-          headersCreated++;
-        }
+          let id: number;
+          if (phRows.length) {
+            id = phRows[0].id;
+          } else {
+            const hash = await generateUniqueHash(['project_header', 'project_item'], 32);
+            const [hr]: any = await conn.query(
+              'INSERT INTO project_header (hash, project_id, name, quantity, amount, is_deleted) VALUES (?,?,?,0,0,0)',
+              [hash, projectId, headerName]
+            );
+            id = hr.insertId;
+            headersCreated++;
+          }
+          resolvedHeaderId = id;
+          return id;
+        };
 
         for (const it of includedItems) {
           const productId = await ensureProduct(conn, toStr(it.productName) || 'Azure Service');
           const model: 'RI' | 'PAYG' = it.model === 'RI' ? 'RI' : 'PAYG';
-          const purchaseHeaderId = await ensurePurchaseHeader(model);
+          // A group can pin all its products to a chosen purchase header; otherwise
+          // fall back to the automatic RI / PAYG header for the item's model.
+          const purchaseHeaderId = groupPurchaseHeaderId > 0 ? groupPurchaseHeaderId : await ensurePurchaseHeader(model);
           // Identity: full resource path when available; otherwise scope by the
           // bar name so identical no-resource meters in different bars never collide.
           // Keep the TAIL of long paths — the head is a shared /subscriptions/… prefix.
@@ -376,19 +399,29 @@ router.post(
 
           if (existing.length) {
             const ex = existing[0];
+            // Where the item should live: an explicitly chosen header (manual
+            // mode) wins; otherwise keep the item's current header — never move
+            // it just because a re-import re-grouped resources differently.
+            const targetHeader = explicitHeaderId > 0
+              ? explicitHeaderId
+              : (ex.header_id ?? await resolveHeaderId());
+            const targetPurchaseHeader = groupPurchaseHeaderId > 0
+              ? groupPurchaseHeaderId
+              : (ex.purchase_header_id ?? purchaseHeaderId);
             // Keep quantity/unit price fresh from the latest month's data.
             await conn.query(
-              'UPDATE project_item SET unit_price = ?, quantity = ? WHERE id = ?',
-              [toNum(it.unitPrice), toNum(it.quantity), ex.id]
+              'UPDATE project_item SET unit_price = ?, quantity = ?, header_id = ?, purchase_header_id = ? WHERE id = ?',
+              [toNum(it.unitPrice), toNum(it.quantity), targetHeader, targetPurchaseHeader, ex.id]
             );
             created.push({
               itemId: ex.id,
-              headerId: ex.header_id ?? headerId,
-              purchaseHeaderId: ex.purchase_header_id ?? purchaseHeaderId,
+              headerId: targetHeader,
+              purchaseHeaderId: targetPurchaseHeader,
               cost: toNum(it.cost),
             });
             itemsMatched++;
           } else {
+            const newHeaderId = await resolveHeaderId();
             const hash = await generateUniqueHash(['project_header', 'project_item'], 32);
             const [ir]: any = await conn.query(
               `INSERT INTO project_item
@@ -397,12 +430,12 @@ router.post(
                  deployed_product, discovery_status, purchase_header_id, description, status)
                VALUES (?,?,?,?,?,?,?,?,NULL,?,?,?,?,?,?,?,?,1)`,
               [
-                hash, resourceId, projectId, headerId, productId,
+                hash, resourceId, projectId, newHeaderId, productId,
                 null, projectDistributor || null, deploymentStart, model, null, toNum(it.unitPrice), toNum(it.quantity),
                 null, null, purchaseHeaderId, toStr(it.meterCategory),
               ]
             );
-            created.push({ itemId: ir.insertId, headerId, purchaseHeaderId, cost: toNum(it.cost) });
+            created.push({ itemId: ir.insertId, headerId: newHeaderId, purchaseHeaderId, cost: toNum(it.cost) });
             itemsCreated++;
           }
         }

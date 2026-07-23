@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal, Stack, Group, Text, Title, Button, Table, Checkbox, TextInput,
   NumberInput, Select, Badge, ThemeIcon, Switch, SimpleGrid, Paper, Menu,
-  LoadingOverlay, ActionIcon, Tooltip, Box, rem, Alert,
+  LoadingOverlay, ActionIcon, Tooltip, Box, rem, Alert, SegmentedControl,
 } from '@mantine/core';
 import { Dropzone } from '@mantine/dropzone';
 // Icons come from the central Lucide registry (aliased to the local names used below).
@@ -24,9 +24,9 @@ interface PreviewItem {
   key: string; uid?: string; productName: string; meterCategory: string; serviceFamily: string;
   model: 'RI' | 'PAYG'; quantity: number; unitOfMeasure: string; unitPrice: number;
   cost: number; rowCount: number; subscription: string; resource: string; resourceCount: number; include: boolean;
-  changeType?: 'new' | 'continuing'; existingItemId?: number; prevUnitPrice?: number; prevCost?: number | null;
+  changeType?: 'new' | 'continuing'; existingItemId?: number; existingHeaderId?: number; existingHeaderName?: string; prevUnitPrice?: number; prevCost?: number | null;
 }
-interface PreviewGroup { header: string; uid?: string; totalCost: number; items: PreviewItem[]; }
+interface PreviewGroup { header: string; uid?: string; headerId?: number; purchaseHeaderId?: number; totalCost: number; items: PreviewItem[]; }
 interface StoppedItem {
   id: number; resource_id: string; model: 'RI' | 'PAYG' | string;
   product_name: string; header_name: string; purchase_header_name: string;
@@ -48,6 +48,8 @@ interface ImportContext {
   itemCount: number; billCount: number;
   distributor: number;
   distributors: { id: number; name: string }[];
+  headers: { id: number; name: string }[];
+  purchaseHeaders: { id: number; name: string }[];
   hasDiscount: boolean;
   lastBill: { month: number; year: number } | null;
   suggestedMonth: number; suggestedYear: number;
@@ -77,6 +79,7 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
   const [distributor, setDistributor] = useState('0');
   const [stopped, setStopped] = useState<StoppedItem[]>([]);
   const [disableStopped, setDisableStopped] = useState<Record<number, boolean>>({});
+  const [layout, setLayout] = useState<'auto' | 'manual'>('auto');
 
   // Fetch import context up-front so the screen adapts to setup vs monthly.
   useEffect(() => {
@@ -100,6 +103,34 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
       items: g.items.map((it) => ({ ...it, uid: it.uid || `i${++uid.current}` })),
     }));
 
+  // Turn the resource-grouped preview into the chosen header layout:
+  //  - 'auto'  : one sales header per resource (original behaviour)
+  //  - 'manual': products bucketed under the project's existing sales headers;
+  //              new/unmatched products land in an "Unassigned" bucket to place.
+  const layoutGroups = (previewGroups: PreviewGroup[], mode: 'auto' | 'manual'): PreviewGroup[] => {
+    if (mode === 'auto') return withUids(previewGroups);
+    const buckets = new Map<number, PreviewGroup>();
+    for (const h of ctx?.headers || []) buckets.set(h.id, { header: h.name, headerId: h.id, totalCost: 0, items: [], uid: `h${++uid.current}` });
+    const unassigned: PreviewGroup = { header: 'Unassigned', totalCost: 0, items: [], uid: `h${++uid.current}` };
+    for (const g of previewGroups) {
+      for (const it of g.items) {
+        const bucket = it.changeType === 'continuing' && it.existingHeaderId && buckets.has(it.existingHeaderId)
+          ? buckets.get(it.existingHeaderId)!
+          : unassigned;
+        bucket.items.push({ ...it, uid: `i${++uid.current}` });
+      }
+    }
+    const result = [...buckets.values(), unassigned];
+    for (const grp of result) grp.totalCost = grp.items.reduce((s, i) => s + i.cost, 0);
+    return result;
+  };
+
+  const changeLayout = (next: 'auto' | 'manual') => {
+    setLayout(next);
+    setCollapsed({});
+    if (preview) setGroups(layoutGroups(preview.groups, next));
+  };
+
   const analyze = async (mapping = map) => {
     if (files.length === 0) { toast.error('Add at least one CSV/Excel file'); return; }
     setAnalyzing(true);
@@ -114,7 +145,7 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
       if (res.data.status === 1) {
         const data: Preview = res.data.data;
         setPreview(data);
-        setGroups(withUids(data.groups));
+        setGroups(layoutGroups(data.groups, layout));
         setCollapsed({});
         setMap({ groupBy: data.summary.groupBy, productBy: data.summary.productBy, resourceBy: data.summary.resourceBy });
         const st = data.diff?.stopped || [];
@@ -166,6 +197,7 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
 
   // ---- full-control edit helpers (headers + items + ordering) ----
   const setHeader = (gi: number, name: string) => setGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, header: name } : g)));
+  const setGroupPurchaseHeader = (gi: number, phId?: number) => setGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, purchaseHeaderId: phId } : g)));
   const patchItem = (gi: number, ii: number, patch: Partial<PreviewItem>) =>
     setGroups((gs) => gs.map((g, i) => i === gi ? { ...g, items: g.items.map((it, j) => j === ii ? { ...it, ...patch } : it) } : g));
   const toggleGroup = (gi: number, include: boolean) =>
@@ -302,6 +334,20 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
               </Alert>
             )}
 
+            {/* Header layout */}
+            <Paper withBorder radius="lg" p="md">
+              <Group justify="space-between" wrap="wrap" gap="sm">
+                <Group gap={6}><IconLayersSubtract size={16} /><Text fw={600} fz="sm">Header layout</Text></Group>
+                <SegmentedControl size="xs" value={layout} onChange={(v) => changeLayout(v as 'auto' | 'manual')}
+                  data={[{ label: 'Auto \u2014 one per resource', value: 'auto' }, { label: 'Manual \u2014 my headers', value: 'manual' }]} />
+              </Group>
+              <Text c="dimmed" fz="xs" mt="xs">
+                {layout === 'auto'
+                  ? 'Products are grouped into one sales header per Azure resource (the original behaviour).'
+                  : 'Products go under the sales headers you already created; anything new lands in \u201cUnassigned\u201d \u2014 drag it into the right header before committing. Existing products keep their header.'}
+              </Text>
+            </Paper>
+
             {/* Column mapping */}
             <Paper withBorder radius="lg" p="md">
               <Group gap={6} mb="sm"><IconTable size={16} /><Text fw={600} fz="sm">Column mapping — you control what becomes what</Text></Group>
@@ -372,6 +418,13 @@ export default function ImportConsumption({ projectId, onClose, onDone }: { proj
                             styles={{ input: { fontWeight: 700, fontSize: rem(15), minWidth: rem(160) } }} style={{ flex: 1, minWidth: 0 }} />
                         </Group>
                         <Group gap={8} wrap="nowrap">
+                          {layout === 'manual' && (
+                            <Select size="xs" w={160} variant="filled" placeholder="Auto RI/PAYG"
+                              data={(ctx?.purchaseHeaders || []).map((p) => ({ value: String(p.id), label: p.name }))}
+                              value={g.purchaseHeaderId ? String(g.purchaseHeaderId) : null}
+                              onChange={(v) => setGroupPurchaseHeader(gi, v ? Number(v) : undefined)}
+                              clearable comboboxProps={{ withinPortal: true }} title="Purchase header for this group's products" />
+                          )}
                           <Badge variant="light" color="gray">{g.items.length}</Badge>
                           <Text fw={700} fz="sm" miw={86} ta="right">{money(grpCost)}</Text>
                           <ActionIcon.Group>

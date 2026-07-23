@@ -107,6 +107,12 @@ router.post(
     const invoiceId = toNum(req.body.invoiceId ?? req.body['add-purchase-bill-invoice-id']);
     if (!projectId || !billId || !invoiceId) return res.json(fail('Error : Missing parameters'));
 
+    const alreadyTagged = await queryOne(
+      'SELECT id FROM bill_invoice_mapping WHERE bill_id = ? AND project_id = ? AND invoice_id = ?',
+      [billId, projectId, invoiceId]
+    );
+    if (alreadyTagged) return res.json(fail('This invoice is already linked to this bill'));
+
     await execute('INSERT INTO bill_invoice_mapping (bill_id, project_id, invoice_id) VALUES (?,?,?)', [
       billId, projectId, invoiceId,
     ]);
