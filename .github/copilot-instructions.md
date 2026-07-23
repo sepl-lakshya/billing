@@ -70,12 +70,52 @@ npm run build
 - Quirk: piping npm through `Select-String`/`Select-Object` can report exit 1 even on
   success — trust the `✓ built` / `TC=0` line, or read `$LASTEXITCODE` directly.
 
+## Deployment (demo + production — env-specific, one command)
+- TWO Linux VMs, one env each: **demo** = `demobilling.surbhi.net` (`APP_ENV=demo`),
+  **production** = `billing.surbhi.net` (`APP_ENV=production`). Same repo + same script
+  deploys either; NEVER run both envs on one VM. NO hardcoded URLs anywhere.
+- **Single-build / single-process (prod):** the backend serves the built SPA
+  (`FRONTEND_DIST=../frontend/dist`) plus `/api` and `/uploads` from ONE Node process on
+  `:4000`; nginx only reverse-proxies the domain → `127.0.0.1:4000`. Dev still runs two
+  servers (Vite `:5173` + Express `:4000`) for HMR — that split is dev-only.
+- **Env files:** committed NON-secret templates `backend/.env.{demo,production}` +
+  `frontend/.env.{demo,production}` (+ `.env.example`). Per-VM SECRETS (DB password,
+  Entra IDs) live in `backend/.env.local` + `frontend/.env.<mode>.local` — git-ignored,
+  NEVER commit. Load order (first wins): real env → `.env.local` → `.env.<APP_ENV>` →
+  `.env.<NODE_ENV>` → `.env`. Both VMs run `NODE_ENV=production` (`isProd` derives from
+  `nodeEnv`, not `appEnv`). Config logic in `backend/src/config.ts`.
+- **Deploy:** `bash deploy/deploy.sh [demo|production]` (target also readable from the
+  git-ignored `deploy/.target`) → npm ci → build backend + `frontend build --mode
+  <target>` → `pm2 reload pm2.config.cjs --env <target>`. nginx configs in
+  `deploy/nginx/*.conf` (`client_max_body_size 60m`, proxy `:4000`). Full runbook:
+  `deploy/README.md`.
+- **Auth (Microsoft Entra ID):** fully wired but DORMANT by default (`AUTH_MODE=none` /
+  `VITE_AUTH_MODE=none`). Frontend MSAL in `frontend/src/lib/authConfig.ts` +
+  `state/AuthContext.tsx` (`@azure/msal-browser`); backend token validation already
+  present. Enable later = fill Entra IDs in the `.env.local` files + flip
+  `AUTH_MODE=entra` + redeploy. Never hardcode tenant/client IDs in committed files.
+
+## Git / repo & OneDrive
+- **Origin:** `https://github.com/sepl-lakshya/billing` (PRIVATE, default branch `main`).
+  The old `vikasgopalani/billing` PHP app is unrelated — never push there.
+- Repo lives INSIDE OneDrive, which locks `.git` during `git gc` → endless
+  "Deletion of directory failed (y/n)" loops. Mitigations already applied:
+  `gc.auto=0` and `core.fscache=true`. Use `git remote set-url` (never `git remote
+  remove` — deleting a ref DIR hangs). Single ref-file ops (`branch -D`/`-m`) are fine.
+  If a loop starts, kill the terminal (the commit itself usually already succeeded) and
+  verify with `git log`.
+- `gh` CLI is the git credential helper (authed as `sepl-lakshya`); after a fresh shell,
+  refresh PATH so `gh` resolves. Recommend eventually moving the repo out of OneDrive
+  for lock-free git.
+
 ## Anti-clutter rules (read carefully)
 - Do NOT create markdown docs, summary files, or changelogs unless explicitly asked.
 - Do NOT leave behind ad-hoc scripts, `*backup*`, `*.old`, or temp files. Delete any
   scratch file you create once done.
-- Do NOT commit logs, build output, or `.env`. `.gitignore` already covers `logs/`,
-  `*.log`, `dist/`, `release/`, `next-env.d.ts`, and the compiled `vite.config.*`.
+- Do NOT commit logs, build output, secrets, or videos. `.gitignore` already covers
+  `logs/`, `*.log`, `dist/`, `release/`, `next-env.d.ts`, the compiled `vite.config.*`,
+  video files (`*.mp4`/`*.mov`/etc.), and per-VM secrets (`.env.local`, `.env.*.local`).
+  The committed `.env.<env>` templates are non-secret; real secrets stay in `.env.local`.
 - Edit existing files over creating new ones. No one-off helpers/abstractions for a
   single use. Only change what's asked — no drive-by refactors, comments, or type churn.
 - This is a Vite app, NOT Next.js. Never add Next.js files/config.
