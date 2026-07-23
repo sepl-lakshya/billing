@@ -3,9 +3,11 @@ import { Tooltip, Avatar } from '@mantine/core';
 import {
   DashboardIcon, ProductIcon, DistributorIcon, OemIcon, PurchaseHeaderIcon,
   CloudIcon, DebitNoteIcon, CreditNoteIcon, InvoiceIcon,
-  RupeeIcon, SystemIcon, ICON,
+  RupeeIcon, SystemIcon, HomeIcon, CollapseIcon, ExpandIcon, ICON,
   type AppIcon,
 } from '../lib/icons';
+import { useAuth } from '../state/AuthContext';
+import { homeUrl } from '../lib/sso';
 
 interface NavItem { to: string; label: string; icon: AppIcon; }
 interface NavGroup { label: string; items: NavItem[]; }
@@ -60,24 +62,51 @@ export default function Sidebar({
   showToggle?: boolean;
 }) {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const displayName = user?.name || 'System User';
+  const initials =
+    displayName.split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'SU';
 
   return (
     <div className={`sb-root${collapsed ? ' sb-collapsed' : ''}`}>
-      <div className="sb-brand">
-        <Tooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} position="right" withArrow disabled={!showToggle}>
-          <button
-            className="sb-logo"
-            onClick={showToggle ? onToggle : undefined}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <RupeeIcon size={ICON.xl} />
-          </button>
-        </Tooltip>
-        {!collapsed && (
-          <div className="sb-brand-copy">
-            <strong>BILLING</strong>
-            <span>SEPL Portal</span>
-          </div>
+      {/* Brand + collapse toggle */}
+      <div className="sb-head">
+        <div className="sb-brand">
+          <div className="sb-logo"><RupeeIcon size={ICON.lg} /></div>
+          {!collapsed && (
+            <div className="sb-brand-copy">
+              <strong>BILLING</strong>
+              <span>SEPL Portal</span>
+            </div>
+          )}
+        </div>
+        {showToggle && (
+          <Tooltip label={collapsed ? 'Expand' : 'Collapse'} position="right" withArrow offset={12}>
+            <button
+              type="button"
+              className="sb-toggle"
+              onClick={onToggle}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <ExpandIcon size={ICON.sm} /> : <CollapseIcon size={ICON.sm} />}
+            </button>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* Home — main dashboard of all applications (external, env-driven URL) */}
+      <div className="sb-home-wrap">
+        {collapsed ? (
+          <Tooltip label="Main Dashboard" position="right" withArrow offset={12}>
+            <a href={homeUrl} className="sb-link sb-home" aria-label="Main Dashboard">
+              <span className="sb-ico"><HomeIcon size={ICON.lg} /></span>
+            </a>
+          </Tooltip>
+        ) : (
+          <a href={homeUrl} className="sb-link sb-home">
+            <span className="sb-ico"><HomeIcon size={ICON.lg} /></span>
+            <span>Main Dashboard</span>
+          </a>
         )}
       </div>
 
@@ -94,7 +123,7 @@ export default function Sidebar({
                 </Link>
               );
               return collapsed ? (
-                <Tooltip key={n.to} label={n.label} position="right" withArrow offset={10}>{link}</Tooltip>
+                <Tooltip key={n.to} label={n.label} position="right" withArrow offset={12}>{link}</Tooltip>
               ) : link;
             })}
           </div>
@@ -102,11 +131,11 @@ export default function Sidebar({
       </nav>
 
       <div className="sb-foot">
-        <Avatar color="brand" variant="white" radius="xl" size={collapsed ? 34 : 38}>SU</Avatar>
+        <Avatar color="brand" variant="white" radius="xl" size={collapsed ? 32 : 36}>{initials}</Avatar>
         {!collapsed && (
           <div className="sb-foot-copy">
-            <strong>System User</strong>
-            <span>SEPL Billing</span>
+            <strong>{displayName}</strong>
+            <span>{user?.email || 'SEPL Billing'}</span>
           </div>
         )}
       </div>

@@ -349,53 +349,85 @@ table.data input[type="number"]:focus { outline: none; border-color: var(--prima
    =================================================================== */
 .sb-root {
   height: 100%; display: flex; flex-direction: column;
-  background: linear-gradient(180deg, #2a6bff 0%, #1c54e6 55%, #163ea6 100%);
+  background: var(--grad-sidebar, linear-gradient(180deg, #2a6bff 0%, #1c54e6 55%, #163ea6 100%));
   color: #fff;
 }
-.sb-brand { display: flex; align-items: center; gap: 11px; padding: 16px 14px 12px; }
-.sb-logo {
-  width: 40px; height: 40px; border-radius: 10px; background: #ffffff;
-  display: grid; place-items: center; color: var(--primary); flex: 0 0 auto;
-  cursor: pointer; border: 0; padding: 0;
-  box-shadow: 0 8px 18px rgba(6, 20, 60, .25);
-  transition: transform .12s ease, box-shadow .12s ease;
+
+/* Brand + collapse toggle */
+.sb-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 12px; min-height: 60px;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
-.sb-logo:hover { transform: scale(1.06); box-shadow: 0 10px 22px rgba(6, 20, 60, .35); }
-.sb-brand-copy { min-width: 0; line-height: 1.15; }
-.sb-brand-copy strong { display: block; font-size: 13px; font-weight: 700; letter-spacing: .18em; }
-.sb-brand-copy span { font-size: 11px; color: rgba(255, 255, 255, .68); }
-.sb-nav { flex: 1; padding: 4px 10px 12px; overflow-y: auto; scrollbar-width: none; }
+.sb-brand { display: flex; align-items: center; gap: 11px; min-width: 0; flex: 1; }
+.sb-logo {
+  width: 38px; height: 38px; border-radius: 10px; background: #ffffff;
+  display: grid; place-items: center; color: var(--primary); flex: 0 0 auto;
+  box-shadow: 0 6px 16px rgba(6, 20, 60, .28);
+}
+.sb-brand-copy { min-width: 0; line-height: 1.2; }
+.sb-brand-copy strong { display: block; font-size: 13px; font-weight: 800; letter-spacing: .16em; }
+.sb-brand-copy span { font-size: 10.5px; color: rgba(255, 255, 255, .66); letter-spacing: .04em; }
+.sb-toggle {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; padding: 0;
+  display: grid; place-items: center; cursor: pointer;
+  color: rgba(255, 255, 255, .85); background: rgba(255, 255, 255, .1); border: 0;
+  transition: background .12s ease, color .12s ease;
+}
+.sb-toggle:hover { background: rgba(255, 255, 255, .22); color: #fff; }
+
+/* Home (main dashboard of all applications) */
+.sb-home-wrap { padding: 12px 10px 2px; }
+.sb-home {
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .16);
+  margin-top: 0;
+}
+.sb-home:hover { background: rgba(255, 255, 255, .2); }
+
+/* Nav */
+.sb-nav { flex: 1; padding: 6px 10px 12px; overflow-y: auto; scrollbar-width: none; }
 .sb-nav::-webkit-scrollbar { width: 0; height: 0; }
 .sb-group-label {
-  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: rgba(255, 255, 255, .58); padding: 16px 12px 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .5); padding: 15px 12px 5px;
 }
 .sb-link {
-  display: flex; align-items: center; gap: 11px; width: 100%;
-  padding: 9px 11px; border-radius: 8px; margin-top: 2px;
-  color: rgba(255, 255, 255, .9); font-weight: 500; font-size: 13.5px; line-height: 1;
+  position: relative;
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 9px 11px; border-radius: 9px; margin-top: 2px;
+  color: rgba(255, 255, 255, .88); font-weight: 500; font-size: 13.5px; line-height: 1;
   white-space: nowrap; cursor: pointer; border: 0; background: transparent; text-align: left;
-  transition: background .1s ease, color .1s ease, box-shadow .1s ease;
+  transition: background .12s ease, color .12s ease, box-shadow .12s ease;
 }
 .sb-link:hover { background: rgba(255, 255, 255, .14); color: #fff; text-decoration: none; }
 .sb-link.active { background: #ffffff; color: var(--primary); font-weight: 600; box-shadow: 0 6px 16px rgba(6, 20, 60, .22); }
-.sb-ico { display: grid; place-items: center; opacity: .9; }
+.sb-ico { display: grid; place-items: center; flex: 0 0 auto; width: 22px; height: 22px; opacity: .92; }
 .sb-link.active .sb-ico { color: var(--primary); opacity: 1; }
+.sb-link:active { transform: scale(.985); }
+
+/* Footer (signed-in user) */
 .sb-foot {
   display: flex; align-items: center; gap: 10px;
-  padding: 13px 14px; border-top: 1px solid rgba(255, 255, 255, .18);
+  padding: 12px 14px; border-top: 1px solid rgba(255, 255, 255, .14);
 }
-.sb-foot-copy { line-height: 1.2; min-width: 0; }
-.sb-foot-copy strong { display: block; font-size: 12.5px; }
-.sb-foot-copy span { font-size: 11px; color: rgba(255, 255, 255, .62); }
+.sb-foot-copy { line-height: 1.25; min-width: 0; }
+.sb-foot-copy strong { display: block; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.sb-foot-copy span { display: block; font-size: 10.5px; color: rgba(255, 255, 255, .62); overflow: hidden; text-overflow: ellipsis; }
 
-/* collapsed rail */
-.sb-collapsed .sb-brand { justify-content: center; padding-left: 8px; padding-right: 8px; }
-.sb-collapsed .sb-nav { padding-left: 8px; padding-right: 8px; }
-.sb-collapsed .sb-link { justify-content: center; padding: 9px 0; }
-.sb-collapsed .sb-foot { justify-content: center; }
-.sb-link { position: relative; }
-.sb-link:active { transform: scale(.98); }
+/* -------- Collapsed rail (thin, icon-only) -------- */
+.sb-collapsed .sb-head { flex-direction: column; gap: 10px; padding: 14px 0; }
+.sb-collapsed .sb-brand { flex: 0 0 auto; justify-content: center; gap: 0; }
+.sb-collapsed .sb-home-wrap { padding: 10px 0 2px; display: flex; justify-content: center; }
+.sb-collapsed .sb-nav { padding-left: 0; padding-right: 0; }
+.sb-collapsed .sb-group + .sb-group { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 6px; }
+.sb-collapsed .sb-group-label { display: none; }
+.sb-collapsed .sb-link,
+.sb-collapsed .sb-home {
+  width: 44px; height: 42px; margin: 4px auto 0; padding: 0;
+  justify-content: center; gap: 0; border-radius: 11px;
+}
+.sb-collapsed .sb-foot { justify-content: center; padding: 12px 0; }
 
 /* =====================================================================
    Modern layer — micro-interactions, states, utilities (additive)

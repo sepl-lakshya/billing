@@ -1,4 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Center, Loader, Stack, Text } from '@mantine/core';
+import { useAuth } from './state/AuthContext';
+import { isCentralAuth } from './lib/sso';
+import AccessDenied from './pages/AccessDenied';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/masters/Products';
 import Oem from './pages/masters/Oem';
@@ -12,6 +16,32 @@ import CreditNotes from './pages/finance/CreditNotes';
 import System from './pages/System';
 
 export default function App() {
+  const { loading, isAuthenticated, forbidden } = useAuth();
+
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Loader />
+      </Center>
+    );
+  }
+
+  // Central SSO: the browser is redirecting to the shared login — show a brief
+  // placeholder instead of a flash of the app.
+  if (isCentralAuth && !isAuthenticated) {
+    return (
+      <Center h="100vh">
+        <Stack align="center" gap="xs">
+          <Loader />
+          <Text size="sm" c="dimmed">Redirecting to sign in…</Text>
+        </Stack>
+      </Center>
+    );
+  }
+
+  // Signed in but without billing access → dedicated screen (with Home button).
+  if (forbidden) return <AccessDenied />;
+
   return (
     <Routes>
       <Route path="/" element={<Dashboard />} />

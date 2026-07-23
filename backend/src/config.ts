@@ -69,12 +69,36 @@ export const config = {
    *                      roles come from the token's `roles` claim (app roles).
    */
   auth: {
-    mode: (process.env.AUTH_MODE || 'none').toLowerCase() as 'none' | 'entra',
+    mode: (process.env.AUTH_MODE || 'none').toLowerCase() as 'none' | 'entra' | 'central',
     entra: {
       tenantId: process.env.ENTRA_TENANT_ID || process.env.AZURE_TENANT_ID || '',
       clientId: process.env.ENTRA_CLIENT_ID || process.env.AZURE_CLIENT_ID || '', // audience of the API app registration
       // Entra app-role value that maps to the local "admin" role.
       adminRole: process.env.ENTRA_ADMIN_ROLE || process.env.AZURE_ADMIN_ROLE || 'Billing.Admin',
+    },
+    /**
+     * Central SSO (AUTH_MODE=central): the SEPL suite's shared sign-in. Users
+     * authenticate once at CENTRAL_LOGIN_ORIGIN (Microsoft) and receive a shared
+     * `spm_token` JWT cookie on *.surbhi.net that every portal trusts. Access is
+     * governed by the central `user_permissions` table. Nothing is hardcoded.
+     */
+    central: {
+      loginOrigin: (process.env.CENTRAL_LOGIN_ORIGIN || '').replace(/\/+$/, ''),
+      // Central portal DB (same MySQL server) holding users + user_permissions.
+      authDbName: process.env.AUTH_DB_NAME || 'easyreminder',
+      // Candidate signing secrets for the shared spm_token. The signature is
+      // ALWAYS verified (forged tokens rejected); multiple candidates only
+      // tolerate secret drift so a validly-signed central token is never
+      // wrongly rejected.
+      jwtSecrets: Array.from(
+        new Set(
+          [
+            process.env.JWT_SECRET,
+            'your-super-secret-key-change-in-production',
+            'testing-surbhi-main-jwt-secret-2026',
+          ].filter((v): v is string => Boolean(v))
+        )
+      ),
     },
   },
   // Fallback identity when AUTH_MODE=none.
@@ -87,6 +111,9 @@ export function validateConfig(): string[] {
   if (config.auth.mode === 'entra') {
     if (!config.auth.entra.tenantId) problems.push('AUTH_MODE=entra requires ENTRA_TENANT_ID');
     if (!config.auth.entra.clientId) problems.push('AUTH_MODE=entra requires ENTRA_CLIENT_ID');
+  }
+  if (config.auth.mode === 'central' && !config.auth.central.loginOrigin) {
+    problems.push('AUTH_MODE=central requires CENTRAL_LOGIN_ORIGIN');
   }
   if (isProd) {
     if (!process.env.CORS_ORIGIN) problems.push('CORS_ORIGIN should be set explicitly in production');

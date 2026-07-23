@@ -7,7 +7,7 @@ import { pool, queryOne } from './db';
 import { logger } from './utils/logger';
 import { requestLogger } from './middleware/requestLogger';
 import { securityHeaders, rateLimiter } from './middleware/security';
-import { authenticate } from './middleware/auth';
+import { authenticate, authorizeBilling } from './middleware/auth';
 import { notFoundHandler, errorHandler } from './middleware/errors';
 
 import lookupsRouter from './routes/lookups';
@@ -73,6 +73,8 @@ app.get('/api/health', async (_req, res) => {
 
 // All /api routes require authentication (no-op identity when AUTH_MODE=none).
 app.use('/api', authenticate);
+// Enforce central-SSO billing permissions (no-op unless AUTH_MODE=central).
+app.use('/api', authorizeBilling);
 
 // ---- Module routers ----
 app.use('/api/lookups', lookupsRouter);

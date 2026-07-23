@@ -2,18 +2,29 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { http, setTokenProvider } from '../api/client';
 import { logger } from '../utils/logger';
 import { getMsal, isEntraEnabled, loginRequest, apiTokenRequest } from '../lib/authConfig';
+import { isCentralAuth, centralLoginUrl, centralLogoutUrl } from '../lib/sso';
 
 interface User {
   id: number;
   email: string;
   name: string;
   roles: string[];
+  permissions?: {
+    is_admin?: boolean;
+    can_view_billing_portal?: boolean;
+    can_create_billing_portal?: boolean;
+    can_delete_billing_portal?: boolean;
+  };
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAuthenticated: boolean;
   isAdmin: boolean;
+  forbidden: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
   logout: () => void;
 }
 
@@ -64,7 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err: any) {
         if (err.response?.status === 401) {
-          // Auth required but not available; user stays null.
+          // Not signed in. Under central SSO, bounce to the shared login page.
+          if (isCentralAuth) {
+            window.location.href = centralLoginUrl();
+            return;
+          }
           logger.debug('Not authenticated (401 on /me)');
         } else {
           logger.error('Failed to fetch current identity', { msg: err.message });
@@ -81,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (err: any) => {
         if (err?.response?.status === 401) {
           setUser(null);
+          if (isCentralAuth) window.location.href = centralLoginUrl();
         }
         return Promise.reject(err);
       }
@@ -89,6 +105,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    if (isCentralAuth) {
+      // Clear the shared *.surbhi.net cookies, then hit central logout.
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `spm_token=; Path=/; Domain=.surbhi.net; Max-Age=0; SameSite=Lax${secure}`;
+      document.cookie = `spm_user=; Path=/; Domain=.surbhi.net; Max-Age=0; SameSite=Lax${secure}`;
+      window.location.href = centralLogoutUrl();
+      return;
+    }
     if (isEntraEnabled) {
       getMsal()
         .then((m) => m?.logoutRedirect())
@@ -96,8 +120,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const perms = user?.permissions ?? {};
+  const isAdmin = !!perms.is_admin || (user?.roles?.includes('admin') ?? false);
+  const forbidden = isCentralAuth && !!user && !(perms.is_admin || perms.can_view_billing_portal);
+  const canCreate = isAdmin || !!perms.can_create_billing_portal;
+  const canDelete = isAdmin || !!perms.can_delete_billing_portal;
+
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin: user?.roles?.includes('admin') ?? false, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated: !!user,
+        isAdmin,
+        forbidden,
+        canCreate,
+        canDelete,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

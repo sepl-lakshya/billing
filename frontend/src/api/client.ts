@@ -8,6 +8,8 @@ export const http = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 60_000,
+  // Send the shared `spm_token` cookie (central SSO) with same-origin API calls.
+  withCredentials: true,
 });
 
 // ---------------------------------------------------------------------------

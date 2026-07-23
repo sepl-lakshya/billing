@@ -64,6 +64,10 @@ export {
   Layers as LayersIcon,
   Hash as IdIcon,
   Inbox as EmptyIcon,
+  House as HomeIcon,
+  LogOut as LogoutIcon,
+  PanelLeftClose as CollapseIcon,
+  PanelLeftOpen as ExpandIcon,
 
   type LucideIcon as AppIcon,
 } from 'lucide-react';
