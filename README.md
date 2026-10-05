@@ -344,13 +344,6 @@ tar czf debug-$(date +%Y-%m-%d).tar.gz logs/
 
 ---
 
-## 📄 License
-
-**Proprietary** — SEPL (Surbhi Electronet Private Limited)  
-All rights reserved. Unauthorized copying or distribution prohibited.
-
----
-
 **Built with ❤️ for enterprise billing operations.**
 
 ```
